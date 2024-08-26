@@ -7,8 +7,8 @@ CREATE TABLE `User` (
     `phone_number` VARCHAR(225) NOT NULL,
     `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updated_at` DATETIME(3) NOT NULL,
-    `created_by` INTEGER NOT NULL,
-    `updated_by` INTEGER NOT NULL,
+    `created_by` VARCHAR(225) NULL,
+    `updated_by` VARCHAR(225) NULL,
 
     UNIQUE INDEX `User_username_key`(`username`),
     UNIQUE INDEX `User_phone_number_key`(`phone_number`),

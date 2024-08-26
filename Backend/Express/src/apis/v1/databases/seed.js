@@ -3,231 +3,261 @@ import { faker } from "@faker-js/faker";
 
 const prisma = new PrismaClient();
 
-async function seed() {
+const main = async () => {
   // Clear existing data
-  await prisma.cart_item.deleteMany({});
   await prisma.order_item.deleteMany({});
   await prisma.payment.deleteMany({});
   await prisma.order.deleteMany({});
   await prisma.product_inventory.deleteMany({});
   await prisma.product.deleteMany({});
-  await prisma.discount.deleteMany({});
+  await prisma.product_category.deleteMany({});
   await prisma.user_address.deleteMany({});
   await prisma.payment_method.deleteMany({});
+  await prisma.cart_item.deleteMany({});
+  await prisma.shopping_session.deleteMany({});
   await prisma.user_role.deleteMany({});
-  await prisma.role.deleteMany({});
   await prisma.user.deleteMany({});
-  await prisma.product_category.deleteMany({});
+  await prisma.role.deleteMany({});
+  await prisma.discount.deleteMany({});
 
-  // Create Roles (only 3 roles)
-  const roles = ["Admin", "Customer", "Supplier"];
-  const createdRoles = await Promise.all(
-    roles.map((role) =>
-      prisma.role.create({
-        data: { role: role },
-      })
-    )
+  console.log("All data cleared successfully!");
+
+  // Define the number of records to create
+  const amountOfUsers = 10;
+  const amountOfDiscounts = 5;
+  const amountOfProducts = 10;
+  const amountOfCategories = 5;
+
+  // Create roles
+  const roles = [
+    { id: "1", role: "ADMIN", created_at: new Date(), updated_at: new Date() },
+    { id: "2", role: "USER", created_at: new Date(), updated_at: new Date() },
+    { id: "3", role: "GUEST", created_at: new Date(), updated_at: new Date() },
+  ];
+
+  await prisma.role.createMany({ data: roles });
+
+  // Create users
+  const users = Array.from({ length: amountOfUsers }).map(() => ({
+    id: faker.string.uuid(),
+    username: faker.internet.userName(),
+    password_hash: faker.internet.password(),
+    full_name: faker.person.fullName(),
+    phone_number: faker.phone.number(),
+    created_by: "1",
+    updated_by: "1",
+    created_at: faker.date.past(),
+    updated_at: faker.date.recent(),
+  }));
+
+  await prisma.user.createMany({ data: users });
+
+  // Create user roles
+  const userRoles = users.map((user, index) => ({
+    user_id: user.id,
+    role_id: index % 3 === 0 ? "1" : index % 2 === 0 ? "2" : "3",
+    created_at: faker.date.past(),
+    updated_at: new Date(),
+  }));
+
+  await prisma.user_role.createMany({ data: userRoles });
+
+  // Create user addresses
+  const userAddresses = users.map((user) => ({
+    id: faker.string.uuid(),
+    address_line1: faker.location.streetAddress(),
+    address_line2: faker.location.secondaryAddress(),
+    city: faker.location.city(),
+    country: faker.location.country(),
+    postal_code: faker.location.zipCode(),
+    user_id: user.id,
+  }));
+
+  await prisma.user_address.createMany({ data: userAddresses });
+
+  // Create payment methods
+  const paymentMethods = users.map((user) => ({
+    id: faker.string.uuid(),
+    payment_type: faker.finance.transactionType(),
+    provider: faker.company.name(),
+    city: faker.location.city(),
+    is_default: faker.datatype.boolean(),
+    status: faker.helpers.arrayElement(["ACTIVE", "INACTIVE", "PENDING"]),
+    user_id: user.id,
+  }));
+
+  await prisma.payment_method.createMany({ data: paymentMethods });
+
+  // Create categories
+  const categories = Array.from({ length: amountOfCategories }).map(() => ({
+    id: faker.string.uuid(),
+    name: faker.commerce.department() + faker.string.uuid(),
+    desc: faker.lorem.sentence(),
+    created_at: faker.date.past(),
+    updated_at: faker.date.recent(),
+    delete_at: faker.datatype.boolean() ? faker.date.past() : null,
+    parent_id: null,
+  }));
+
+  await prisma.product_category.createMany({ data: categories });
+
+  // Create subcategories for each category
+  const categoryIds = categories.map((category) => category.id);
+  const subCategories = categories.flatMap((category) =>
+    Array.from({ length: 3 }).map(() => ({
+      id: faker.string.uuid(),
+      name: faker.commerce.department() + faker.string.uuid(),
+      desc: faker.lorem.sentence(),
+      created_at: faker.date.past(),
+      updated_at: faker.date.recent(),
+      delete_at: faker.datatype.boolean() ? faker.date.past() : null,
+      parent_id: category.id,
+    }))
   );
 
-  // Create Users
-  const createdUsers = await Promise.all(
-    Array.from({ length: 20 }).map(() =>
-      prisma.user.create({
-        data: {
-          username: faker.internet.userName(),
-          password_hash: faker.internet.password(),
-          full_name: faker.person.fullName(),
-          phone_number: faker.phone.number(),
-          created_by: faker.datatype.number({ min: 1, max: 10 }),
-          updated_by: faker.datatype.number({ min: 1, max: 10 }),
-        },
-      })
-    )
-  );
+  await prisma.product_category.createMany({ data: subCategories });
 
-  // Create User_Roles
-  const userRoles = await Promise.all(
-    createdUsers.flatMap((user) =>
-      createdRoles.map((role) =>
-        prisma.user_role.create({
-          data: {
-            user_id: user.id,
-            role_id: role.id,
-          },
-        })
-      )
-    )
-  );
+  // Create discounts
+  const discounts = Array.from({ length: amountOfDiscounts }).map(() => ({
+    id: faker.string.uuid(),
+    name: faker.commerce.productName() + faker.string.uuid(),
+    desc: faker.lorem.sentence(),
+    discount_percent: faker.number.int({ min: 5, max: 50 }),
+    active: faker.datatype.boolean(),
+    created_at: faker.date.past(),
+    updated_at: faker.date.recent(),
+  }));
 
-  // Create User_Addresses
-  const userAddresses = await Promise.all(
-    createdUsers.map((user) =>
-      prisma.user_address.create({
-        data: {
-          address_line1: faker.address.streetAddress(),
-          address_line2: faker.address.secondaryAddress(),
-          city: faker.address.city(),
-          country: faker.address.country(),
-          postal_code: faker.address.zipCode(),
-          user_id: user.id,
-        },
-      })
-    )
-  );
+  await prisma.discount.createMany({ data: discounts });
 
-  // Create Discounts with unique names
-  const discountNames = [];
-  const createdDiscounts = await Promise.all(
-    Array.from({ length: 20 }).map(() => {
-      let name;
-      do {
-        name = faker.commerce.productName();
-      } while (discountNames.includes(name));
-      discountNames.push(name);
-      return prisma.discount.create({
-        data: {
-          name: name,
-          desc: faker.lorem.sentence(),
-          discount_percent: faker.datatype.number({
-            min: 5,
-            max: 50,
-            precision: 0.01,
-          }),
-          active: faker.datatype.boolean(),
-        },
-      });
-    })
-  );
+  // Create products
+  const products = Array.from({ length: amountOfProducts }).map(() => ({
+    id: faker.string.uuid(),
+    name: faker.commerce.productName(),
+    desc: faker.commerce.productDescription(),
+    price: parseFloat(faker.commerce.price()),
+    created_at: faker.date.past(),
+    updated_at: faker.date.recent(),
+    discount_id: faker.helpers.arrayElement(discounts).id,
+    category_id: faker.helpers.arrayElement(categoryIds),
+  }));
 
-  // Create Product_Categories with unique names
-  const categoryNames = [];
-  const createdCategories = await Promise.all(
-    Array.from({ length: 10 }).map(() => {
-      let name;
-      do {
-        name = faker.commerce.department();
-      } while (categoryNames.includes(name));
-      categoryNames.push(name);
-      return prisma.product_category.create({
-        data: {
-          name: name,
-          desc: faker.lorem.sentence(),
-        },
-      });
-    })
-  );
+  await prisma.product.createMany({ data: products });
 
-  // Create Products
-  const createdProducts = await Promise.all(
-    Array.from({ length: 20 }).map(() => {
-      const category = faker.helpers.arrayElement(createdCategories);
-      const discount = faker.helpers.arrayElement(createdDiscounts);
-      return prisma.product.create({
-        data: {
-          name: faker.commerce.productName(),
-          price: parseFloat(faker.commerce.price()),
-          created_at: new Date(),
-          updated_at: new Date(),
-          category_id: category.id,
-          discount_id: discount.id,
-        },
-      });
-    })
-  );
+  // Create product inventories
+  const productInventories = products.map((product) => ({
+    id: faker.string.uuid(),
+    quantity: faker.number.int({ min: 0, max: 100 }),
+    created_at: faker.date.past(),
+    updated_at: faker.date.recent(),
+    product_id: product.id,
+  }));
 
-  // Create Product_Inventory
-  const productInventories = await Promise.all(
-    createdProducts.map((product) =>
-      prisma.product_inventory.create({
-        data: {
-          quantity: faker.datatype.number({ min: 1, max: 100 }),
-          product_id: product.id,
-        },
-      })
-    )
-  );
+  await prisma.product_inventory.createMany({ data: productInventories });
 
-  // Create Orders
-  const createdOrders = await Promise.all(
-    Array.from({ length: 20 }).map(() =>
-      prisma.order.create({
-        data: {
-          total: parseFloat(faker.commerce.price()),
-          order_status: "PENDING",
-          created_at: new Date(),
-          updated_at: new Date(),
-          user_id: faker.helpers.arrayElement(createdUsers).id,
-          payments: {
-            create: [
-              {
-                amount: parseFloat(faker.commerce.price()),
-                payment_status: true,
-                payment_date: new Date(),
-              },
-            ],
-          },
-        },
-      })
-    )
-  );
+  // Create orders
+  const orders = users.map((user) => ({
+    id: faker.string.uuid(),
+    total: parseFloat(faker.commerce.price()),
+    order_status: faker.helpers.arrayElement([
+      "PENDING",
+      "PROCESSING",
+      "SHIPPED",
+      "DELIVERED",
+      "CANCELLED",
+      "RETURNED",
+    ]),
+    created_at: faker.date.past(),
+    updated_at: faker.date.recent(),
+    user_id: user.id,
+  }));
 
-  // Create Order_Items with unique product_id per order_id
-  await Promise.all(
-    createdOrders.map(async (order) => {
-      const productIds = new Set();
-      while (productIds.size < 5) {
-        productIds.add(faker.helpers.arrayElement(createdProducts).id);
-      }
+  await prisma.order.createMany({ data: orders });
 
-      return Promise.all(
-        Array.from(productIds).map((productId) =>
-          prisma.order_item.create({
-            data: {
-              quantity: faker.datatype.number({ min: 1, max: 10 }),
-              order_id: order.id,
-              product_id: productId,
-            },
-          })
+  // Create payments
+  const payments = orders.map((order) => ({
+    id: faker.string.uuid(),
+    amount: order.total,
+    payment_status: faker.datatype.boolean(),
+    payment_date: faker.date.past(),
+    created_at: faker.date.past(),
+    updated_at: faker.date.recent(),
+    order_id: order.id,
+  }));
+
+  await prisma.payment.createMany({ data: payments });
+
+  // Create order items
+  const orderItemsSet = new Set();
+  const orderItems = orders.flatMap((order) => {
+    const uniqueProductIds = Array.from(
+      new Set(
+        Array.from({ length: 3 }).map(
+          () => faker.helpers.arrayElement(products).id
         )
-      );
-    })
-  );
-
-  // Create Shopping_Sessions
-  const createdShoppingSessions = await Promise.all(
-    createdUsers.map((user) =>
-      prisma.shopping_session.create({
-        data: {
-          total: parseFloat(
-            faker.commerce.price({ min: 1, max: 1000, precision: 0.01 })
-          ),
-          user_id: user.id,
-        },
-      })
-    )
-  );
-
-  // Create Cart_Items
-  await Promise.all(
-    createdShoppingSessions.flatMap((shoppingSession) =>
-      createdProducts.map((product) =>
-        prisma.cart_item.create({
-          data: {
-            quantity: faker.datatype.number({ min: 1, max: 10 }),
-            shopping_session_id: shoppingSession.id,
-            product_id: product.id,
-          },
-        })
       )
-    )
-  );
+    );
 
-  console.log("Seeding complete!");
-}
+    return uniqueProductIds
+      .filter((productId) => !orderItemsSet.has(productId))
+      .map((productId) => {
+        orderItemsSet.add(productId);
+        return {
+          id: faker.string.uuid(),
+          quantity: parseFloat(faker.string.numeric(2)),
+          created_at: faker.date.past(),
+          updated_at: faker.date.recent(),
+          order_id: order.id,
+          product_id: productId,
+        };
+      });
+  });
 
-seed()
+  await prisma.order_item.createMany({ data: orderItems });
+
+  // Create shopping sessions
+  const shoppingSessions = users.map((user) => ({
+    id: faker.string.uuid(),
+    total: parseFloat(faker.commerce.price()),
+    created_at: faker.date.past(),
+    updated_at: faker.date.recent(),
+    user_id: user.id,
+  }));
+
+  await prisma.shopping_session.createMany({ data: shoppingSessions });
+
+  // Create cart items
+  const uniqueProductIds = new Set();
+  const cartItems = shoppingSessions.flatMap((cart) => {
+    return Array.from({ length: 3 })
+      .map(() => {
+        const productId = faker.helpers.arrayElement(products).id;
+
+        if (uniqueProductIds.has(productId)) return null;
+
+        uniqueProductIds.add(productId);
+
+        return {
+          id: faker.string.uuid(),
+          quantity: parseFloat(faker.string.numeric(2)),
+          created_at: faker.date.past(),
+          updated_at: faker.date.recent(),
+          shopping_session_id: cart.id,
+          product_id: productId,
+        };
+      })
+      .filter((item) => item !== null);
+  });
+
+  await prisma.cart_item.createMany({ data: cartItems });
+
+  console.log("Seeding completed with Faker.js!");
+};
+
+main()
   .catch((e) => {
-    console.error(e);
+    console.error("Error:: ", e);
+    process.exit(1);
   })
   .finally(async () => {
     await prisma.$disconnect();

@@ -22,8 +22,8 @@ model User {
   phone_number        String            @db.VarChar(225) @unique
   created_at          DateTime          @default(now())
   updated_at          DateTime          @updatedAt
-  created_by          Int               @db.Int
-  updated_by          Int               @db.Int
+  created_by          String?           @db.VarChar(225)
+  updated_by          String?           @db.VarChar(225)
   roles               User_role[]
   user_addresses      User_address[]
   payment_methods     Payment_method[]
@@ -171,7 +171,6 @@ model Order_item {
   order_id            String
   product             Product           @relation(fields: [product_id], references: [id])
   product_id          String            @unique
-  @@unique([order_id, product_id])
 }
 
 model Shopping_session {
